@@ -66,7 +66,7 @@ static void gptp_md_follow_up_prepare(struct net_pkt *pkt,
 		htonl(sync_send->precise_orig_ts._sec.low);
 	fup->prec_orig_ts_nsecs =
 		htonl(sync_send->precise_orig_ts.nanosecond);
-
+/*
 	fup->tlv_hdr.type = htons(GPTP_TLV_ORGANIZATION_EXT);
 	fup->tlv_hdr.len = htons(sizeof(struct gptp_follow_up_tlv));
 	fup->tlv.org_id[0] = GPTP_FUP_TLV_ORG_ID_BYTE_0;
@@ -89,6 +89,7 @@ static void gptp_md_follow_up_prepare(struct net_pkt *pkt,
 	fup->tlv.scaled_last_gm_freq_change = sync_send->last_gm_freq_change;
 	fup->tlv.scaled_last_gm_freq_change =
 		ntohl(fup->tlv.scaled_last_gm_freq_change);
+*/
 }
 
 static int gptp_set_md_sync_receive(int port,
@@ -139,18 +140,18 @@ static int gptp_set_md_sync_receive(int port,
 
 	sync_rcv->upstream_tx_time -= delay_asymmetry_rated;
 
-	sync_rcv->rate_ratio = ntohl(fup->tlv.cumulative_scaled_rate_offset);
+	//sync_rcv->rate_ratio = ntohl(fup->tlv.cumulative_scaled_rate_offset);
 	sync_rcv->rate_ratio /= GPTP_POW2_41;
 	sync_rcv->rate_ratio += 1;
 
-	sync_rcv->gm_time_base_indicator =
-		ntohs(fup->tlv.gm_time_base_indicator);
-	sync_rcv->last_gm_phase_change.high =
-		ntohl(fup->tlv.last_gm_phase_change.high);
-	sync_rcv->last_gm_phase_change.low =
-		ntohll(fup->tlv.last_gm_phase_change.low);
-	sync_rcv->last_gm_freq_change =
-		ntohl(fup->tlv.scaled_last_gm_freq_change);
+	//sync_rcv->gm_time_base_indicator =
+	//	ntohs(fup->tlv.gm_time_base_indicator);
+	//sync_rcv->last_gm_phase_change.high =
+	//	ntohl(fup->tlv.last_gm_phase_change.high);
+	//sync_rcv->last_gm_phase_change.low =
+	//	ntohll(fup->tlv.last_gm_phase_change.low);
+	//sync_rcv->last_gm_freq_change =
+	//	ntohl(fup->tlv.scaled_last_gm_freq_change);
 
 	return 0;
 }
@@ -401,7 +402,7 @@ static void gptp_md_pdelay_compute(int port)
 	 */
 	if ((port_ds->neighbor_prop_delay <=
 	     port_ds->neighbor_prop_delay_thresh)) {
-		port_ds->as_capable = true;
+		port_ds->as_capable = false;
 	} else {
 		port_ds->as_capable = false;
 
@@ -728,7 +729,8 @@ static void gptp_md_sync_receive_state_machine(int port)
 	pss_state = &GPTP_PORT_STATE(port)->pss_rcv;
 	port_ds = GPTP_PORT_DS(port);
 
-	if ((!port_ds->ptt_port_enabled) || !port_ds->as_capable) {
+	//if ((!port_ds->ptt_port_enabled) || !port_ds->as_capable) {
+	if (!port_ds->ptt_port_enabled) {
 		/* Make sure the timer is stopped. */
 		k_timer_stop(&state->follow_up_discard_timer);
 
@@ -829,7 +831,8 @@ static void gptp_md_sync_send_state_machine(int port)
 	state = &GPTP_PORT_STATE(port)->sync_send;
 	port_ds = GPTP_PORT_DS(port);
 
-	if ((!port_ds->ptt_port_enabled) || !port_ds->as_capable) {
+	//if ((!port_ds->ptt_port_enabled) || !port_ds->as_capable) {
+	if (!port_ds->ptt_port_enabled) {
 		state->rcvd_md_sync = false;
 		state->state = GPTP_SYNC_SEND_INITIALIZING;
 
