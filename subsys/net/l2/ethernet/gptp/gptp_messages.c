@@ -21,6 +21,9 @@ static struct net_if_timestamp_cb pdelay_response_timestamp_cb;
 static bool sync_cb_registered;
 static bool ts_cb_registered;
 
+static const struct net_eth_addr ptp_multicast_eth_addr = {
+	{ 0x01, 0x1b, 0x19, 0x00, 0x00, 0x00 } };
+
 static const struct net_eth_addr gptp_multicast_eth_addr = {
 	{ 0x01, 0x80, 0xc2, 0x00, 0x00, 0x0e } };
 
@@ -150,7 +153,7 @@ static struct net_pkt *setup_gptp_frame_debug(struct net_if *iface,
 	setup_gptp_frame_debug(iface, extra_header, __func__, __LINE__)
 #else
 static struct net_pkt *setup_gptp_frame(struct net_if *iface,
-					size_t extra_header)
+					size_t extra_header, struct net_eth_addr *eth_addr)
 #endif
 {
 	struct net_pkt *pkt;
@@ -174,7 +177,7 @@ static struct net_pkt *setup_gptp_frame(struct net_if *iface,
 	net_pkt_lladdr_src(pkt)->addr = net_if_get_link_addr(iface)->addr;
 	net_pkt_lladdr_src(pkt)->len = net_if_get_link_addr(iface)->len;
 
-	net_pkt_lladdr_dst(pkt)->addr = (u8_t *)&gptp_multicast_eth_addr;
+	net_pkt_lladdr_dst(pkt)->addr = (u8_t *)&eth_addr;
 	net_pkt_lladdr_dst(pkt)->len = sizeof(struct net_eth_addr);
 
 	return pkt;
@@ -192,7 +195,7 @@ struct net_pkt *gptp_prepare_sync(int port)
 	iface = GPTP_PORT_IFACE(port);
 	NET_ASSERT(iface);
 
-	pkt = setup_gptp_frame(iface, sizeof(struct gptp_sync));
+	pkt = setup_gptp_frame(iface, sizeof(struct gptp_sync), &ptp_multicast_eth_addr);
 	if (!pkt) {
 		NET_DBG("Cannot get gPTP frame");
 		return NULL;
@@ -209,7 +212,8 @@ struct net_pkt *gptp_prepare_sync(int port)
 	 *
 	 * Some fields are set by gptp_md_sync_send_prepare().
 	 */
-	hdr->transport_specific = GPTP_TRANSPORT_802_1_AS;
+	//hdr->transport_specific = GPTP_TRANSPORT_802_1_AS;
+	hdr->transport_specific = GPTP_TRANSPORT_1588;
 	hdr->message_type = GPTP_SYNC_MESSAGE;
 	hdr->ptp_version = GPTP_VERSION;
 	hdr->sequence_id = htons(port_ds->sync_seq_id);
@@ -247,7 +251,8 @@ struct net_pkt *gptp_prepare_follow_up(int port, struct net_pkt *sync)
 	iface = GPTP_PORT_IFACE(port);
 	NET_ASSERT(iface);
 
-	pkt = setup_gptp_frame(iface, sizeof(struct gptp_follow_up));
+	pkt = setup_gptp_frame(
+		iface, sizeof(struct gptp_follow_up), &ptp_multicast_eth_addr);
 	if (!pkt) {
 		NET_DBG("Cannot get gPTP frame");
 		return NULL;
@@ -264,7 +269,8 @@ struct net_pkt *gptp_prepare_follow_up(int port, struct net_pkt *sync)
 	 *
 	 * Some fields are set by gptp_md_follow_up_prepare().
 	 */
-	hdr->transport_specific = GPTP_TRANSPORT_802_1_AS;
+	//hdr->transport_specific = GPTP_TRANSPORT_802_1_AS;
+	hdr->transport_specific = GPTP_TRANSPORT_1588;
 	hdr->message_type = GPTP_FOLLOWUP_MESSAGE;
 	hdr->ptp_version = GPTP_VERSION;
 	hdr->sequence_id = sync_hdr->sequence_id;
@@ -299,7 +305,7 @@ struct net_pkt *gptp_prepare_pdelay_req(int port)
 	iface = GPTP_PORT_IFACE(port);
 	NET_ASSERT(iface);
 
-	pkt = setup_gptp_frame(iface, sizeof(struct gptp_pdelay_req));
+	pkt = setup_gptp_frame(iface, sizeof(struct gptp_pdelay_req), &gptp_multicast_eth_addr);
 	if (!pkt) {
 		NET_DBG("Cannot get gPTP frame");
 		return NULL;
@@ -312,7 +318,8 @@ struct net_pkt *gptp_prepare_pdelay_req(int port)
 	hdr = GPTP_HDR(pkt);
 
 	/* Header configuration. */
-	hdr->transport_specific = GPTP_TRANSPORT_802_1_AS;
+	//hdr->transport_specific = GPTP_TRANSPORT_802_1_AS;
+	hdr->transport_specific = GPTP_TRANSPORT_1588;
 	hdr->message_type = GPTP_PATH_DELAY_REQ_MESSAGE;
 	hdr->ptp_version = GPTP_VERSION;
 	hdr->sequence_id = htons(port_ds->pdelay_req_seq_id);
@@ -355,7 +362,7 @@ struct net_pkt *gptp_prepare_pdelay_resp(int port,
 	struct gptp_port_ds *port_ds;
 	struct net_pkt *pkt;
 
-	pkt = setup_gptp_frame(iface, sizeof(struct gptp_pdelay_resp));
+	pkt = setup_gptp_frame(iface, sizeof(struct gptp_pdelay_resp), &gptp_multicast_eth_addr);
 	if (!pkt) {
 		NET_DBG("Cannot get gPTP frame");
 		return NULL;
@@ -372,7 +379,8 @@ struct net_pkt *gptp_prepare_pdelay_resp(int port,
 	query = GPTP_HDR(req);
 
 	/* Header configuration. */
-	hdr->transport_specific = GPTP_TRANSPORT_802_1_AS;
+	//hdr->transport_specific = GPTP_TRANSPORT_802_1_AS;
+	hdr->transport_specific = GPTP_TRANSPORT_1588;
 	hdr->message_type = GPTP_PATH_DELAY_RESP_MESSAGE;
 	hdr->ptp_version = GPTP_VERSION;
 	hdr->sequence_id = query->sequence_id;
@@ -417,7 +425,7 @@ struct net_pkt *gptp_prepare_pdelay_follow_up(int port,
 	struct net_pkt *pkt;
 
 	pkt = setup_gptp_frame(iface,
-			       sizeof(struct gptp_pdelay_resp_follow_up));
+			       sizeof(struct gptp_pdelay_resp_follow_up), &gptp_multicast_eth_addr);
 	if (!pkt) {
 		NET_DBG("Cannot get gPTP frame");
 		return NULL;
@@ -434,7 +442,8 @@ struct net_pkt *gptp_prepare_pdelay_follow_up(int port,
 	resp_hdr = GPTP_HDR(resp);
 
 	/* Header configuration. */
-	hdr->transport_specific = GPTP_TRANSPORT_802_1_AS;
+	//hdr->transport_specific = GPTP_TRANSPORT_802_1_AS;
+	hdr->transport_specific = GPTP_TRANSPORT_1588;
 	hdr->ptp_version = GPTP_VERSION;
 	hdr->message_type = GPTP_PATH_DELAY_FOLLOWUP_MESSAGE;
 	hdr->sequence_id = resp_hdr->sequence_id;
@@ -486,7 +495,7 @@ struct net_pkt *gptp_prepare_announce(int port)
 	NET_ASSERT(iface);
 
 	pkt = setup_gptp_frame(iface, sizeof(struct gptp_announce) - 8 +
-			       ntohs(global_ds->path_trace.len));
+			       ntohs(global_ds->path_trace.len), &ptp_multicast_eth_addr);
 	if (!pkt) {
 		NET_DBG("Cannot get gPTP frame");
 		return NULL;
@@ -499,7 +508,8 @@ struct net_pkt *gptp_prepare_announce(int port)
 	port_ds = GPTP_PORT_DS(port);
 
 	hdr->message_type = GPTP_ANNOUNCE_MESSAGE;
-	hdr->transport_specific = GPTP_TRANSPORT_802_1_AS;
+	//hdr->transport_specific = GPTP_TRANSPORT_802_1_AS;
+	hdr->transport_specific = GPTP_TRANSPORT_1588;
 	hdr->ptp_version = GPTP_VERSION;
 
 	hdr->domain_number = 0U;
@@ -554,7 +564,7 @@ struct net_pkt *gptp_prepare_announce(int port)
 	hdr->sequence_id = htons(port_ds->announce_seq_id);
 	port_ds->announce_seq_id++;
 
-	ann->tlv.type = GPTP_ANNOUNCE_MSG_PATH_SEQ_TYPE;
+	//ann->tlv.type = GPTP_ANNOUNCE_MSG_PATH_SEQ_TYPE;
 
 	/* Clear reserved fields. */
 	(void)memset(ann->reserved1, 0, sizeof(ann->reserved1));
@@ -564,7 +574,7 @@ struct net_pkt *gptp_prepare_announce(int port)
 				    sizeof(struct gptp_announce) - 8 +
 				    ntohs(global_ds->path_trace.len));
 
-	ann->tlv.len = global_ds->path_trace.len;
+	//ann->tlv.len = global_ds->path_trace.len;
 
 	net_pkt_cursor_init(pkt);
 

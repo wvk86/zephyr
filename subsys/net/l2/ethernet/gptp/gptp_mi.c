@@ -8,7 +8,6 @@
 LOG_MODULE_DECLARE(net_gptp, CONFIG_NET_GPTP_LOG_LEVEL);
 
 #include <ptp_clock.h>
-
 #include "gptp_messages.h"
 #include "gptp_data_set.h"
 #include "gptp_state.h"
@@ -369,7 +368,8 @@ static void gptp_mi_pss_rcv_state_machine(int port)
 	site_ss_state = &GPTP_STATE()->site_ss;
 	port_ds = GPTP_PORT_DS(port);
 
-	if ((!port_ds->ptt_port_enabled) || !port_ds->as_capable) {
+	//if ((!port_ds->ptt_port_enabled) || !port_ds->as_capable) {
+	if (!port_ds->ptt_port_enabled) {
 		state->rcvd_md_sync = false;
 		state->state = GPTP_PSS_RCV_DISCARD;
 		return;
@@ -467,8 +467,10 @@ static void gptp_mi_pss_send_state_machine(int port)
 		gptp_update_sync_interval(port, GPTP_ITV_SET_TO_INIT);
 	}
 
-	if (state->rcvd_pss_sync && ((!port_ds->ptt_port_enabled) ||
-				     !port_ds->as_capable)) {
+	// if (state->rcvd_pss_sync && ((!port_ds->ptt_port_enabled) ||
+	// 			     !port_ds->as_capable)) {
+	if (state->rcvd_pss_sync && (!port_ds->ptt_port_enabled)) {
+
 		state->rcvd_pss_sync = false;
 		state->state = GPTP_PSS_SEND_TRANSMIT_INIT;
 
@@ -524,7 +526,8 @@ static void gptp_mi_pss_send_state_machine(int port)
 		      state->pss_sync_ptr->local_port_number != port) ||
 		     (state->sync_itv_timer_expired &&
 		      (state->last_rcvd_port_num != port) &&
-		      port_ds->as_capable && port_ds->ptt_port_enabled))) {
+		      port_ds->ptt_port_enabled))) {
+		      //port_ds->as_capable && port_ds->ptt_port_enabled))) {
 
 			state->state = GPTP_PSS_SEND_SEND_MD_SYNC;
 
@@ -697,9 +700,10 @@ static void gptp_update_local_port_clock(void)
 	port_ds = GPTP_PORT_DS(port);
 
 	/* Check if the last neighbor rate ratio can still be used */
-	if (!port_ds->neighbor_rate_ratio_valid) {
-		return;
-	}
+	// if (!port_ds->neighbor_rate_ratio_valid) {
+	// 	LOG_WRN("VK_DBG: %s:%d", __FILE__, __LINE__);
+	// 	return;
+	// }
 
 	port_ds->neighbor_rate_ratio_valid = false;
 
@@ -1125,7 +1129,7 @@ static void gptp_mi_clk_master_sync_rcv_state_machine(void)
 
 static void copy_path_trace(struct gptp_announce *announce)
 {
-	int len = ntohs(announce->tlv.len);
+	int len = 0;//ntohs(announce->tlv.len);
 	struct gptp_path_trace *sys_path_trace;
 
 	if (len > GPTP_MAX_PATHTRACE_SIZE) {
@@ -1138,12 +1142,12 @@ static void copy_path_trace(struct gptp_announce *announce)
 
 	sys_path_trace->len = htons(len + GPTP_CLOCK_ID_LEN);
 
-	memcpy(sys_path_trace->path_sequence, announce->tlv.path_sequence,
-	       len);
+	// memcpy(sys_path_trace->path_sequence, announce->tlv.path_sequence,
+	//        len);
 
 	/* Append local clockIdentity. */
-	memcpy((u8_t *)sys_path_trace->path_sequence + len,
-	       GPTP_DEFAULT_DS()->clk_id, GPTP_CLOCK_ID_LEN);
+	// memcpy((u8_t *)sys_path_trace->path_sequence + len,
+	//        GPTP_DEFAULT_DS()->clk_id, GPTP_CLOCK_ID_LEN);
 }
 
 static bool gptp_mi_qualify_announce(int port, struct net_pkt *announce_msg)
@@ -1166,17 +1170,17 @@ static bool gptp_mi_qualify_announce(int port, struct net_pkt *announce_msg)
 		return false;
 	}
 
-	for (i = 0; i < len + 1; i++) {
-		if (memcmp(announce->tlv.path_sequence[i],
-			   GPTP_DEFAULT_DS()->clk_id,
-			   GPTP_CLOCK_ID_LEN) == 0) {
-			return false;
-		}
-	}
+	// for (i = 0; i < len + 1; i++) {
+	// 	if (memcmp(announce->tlv.path_sequence[i],
+	// 		   GPTP_DEFAULT_DS()->clk_id,
+	// 		   GPTP_CLOCK_ID_LEN) == 0) {
+	// 		return false;
+	// 	}
+	// }
 
-	if (GPTP_GLOBAL_DS()->selected_role[port] == GPTP_PORT_SLAVE) {
-		copy_path_trace(announce);
-	}
+	// if (GPTP_GLOBAL_DS()->selected_role[port] == GPTP_PORT_SLAVE) {
+	// 	copy_path_trace(announce);
+	// }
 
 	return true;
 }
@@ -1191,7 +1195,8 @@ static void gptp_mi_port_announce_receive_state_machine(int port)
 	port_ds = GPTP_PORT_DS(port);
 	bmca_data = GPTP_PORT_BMCA_DATA(port);
 
-	if ((!port_ds->ptt_port_enabled) || (!port_ds->as_capable)) {
+	//if ((!port_ds->ptt_port_enabled) || (!port_ds->as_capable)) {
+	if (!port_ds->ptt_port_enabled) {
 		state->state = GPTP_PA_RCV_DISCARD;
 	}
 
@@ -1211,7 +1216,7 @@ static void gptp_mi_port_announce_receive_state_machine(int port)
 		/* "portEnabled" is not checked: the interface is always up. */
 		if (state->rcvd_announce &&
 		    port_ds->ptt_port_enabled &&
-		    port_ds->as_capable	&&
+		    //port_ds->as_capable	&&
 		    !bmca_data->rcvd_msg) {
 			state->rcvd_announce = false;
 
@@ -1356,7 +1361,8 @@ static void gptp_mi_port_announce_information_state_machine(int port)
 	port_ds = GPTP_PORT_DS(port);
 	global_ds = GPTP_GLOBAL_DS();
 
-	if ((!port_ds->ptt_port_enabled || !port_ds->as_capable) &&
+	//if ((!port_ds->ptt_port_enabled || !port_ds->as_capable) &&
+	if (!port_ds->ptt_port_enabled &&
 	    (bmca_data->info_is != GPTP_INFO_IS_DISABLED)) {
 		state->state = GPTP_PA_INFO_DISABLED;
 	}
@@ -1373,7 +1379,8 @@ static void gptp_mi_port_announce_information_state_machine(int port)
 		/* Fallthrough. */
 
 	case GPTP_PA_INFO_POST_DISABLED:
-		if (port_ds->ptt_port_enabled && port_ds->as_capable) {
+		//if (port_ds->ptt_port_enabled && port_ds->as_capable) {
+		if (!port_ds->ptt_port_enabled) {
 			state->state = GPTP_PA_INFO_AGED;
 		} else if (bmca_data->rcvd_msg) {
 			state->state = GPTP_PA_INFO_DISABLED;
@@ -1802,28 +1809,34 @@ static void gptp_set_selected_tree(void)
 
 static void gptp_mi_port_role_selection_state_machine(void)
 {
-	struct gptp_port_role_selection_state *state;
+	// struct gptp_port_role_selection_state *state;
 
-	state = &GPTP_STATE()->pr_sel;
+	// state = &GPTP_STATE()->pr_sel;
 
-	switch (state->state) {
-	case GPTP_PR_SELECTION_INIT_BRIDGE:
-		gptp_updt_role_disabled_tree();
-		state->state = GPTP_PR_SELECTION_ROLE_SELECTION;
+	// switch (state->state) {
+	// case GPTP_PR_SELECTION_INIT_BRIDGE:
+	// 	gptp_updt_role_disabled_tree();
+	// 	state->state = GPTP_PR_SELECTION_ROLE_SELECTION;
 
-		/* Be sure to enter the "if" statement immediately after. */
-		GPTP_GLOBAL_DS()->reselect_array = ~0;
-		/* Fallthrough. */
+	// 	 Be sure to enter the "if" statement immediately after.
+	// 	GPTP_GLOBAL_DS()->reselect_array = ~0;
+	// 	/* Fallthrough. */
 
-	case GPTP_PR_SELECTION_ROLE_SELECTION:
-		if (GPTP_GLOBAL_DS()->reselect_array != 0) {
-			gptp_clear_reselect_tree();
-			gptp_updt_roles_tree();
-			gptp_set_selected_tree();
-		}
+	// case GPTP_PR_SELECTION_ROLE_SELECTION:
+	// 	if (GPTP_GLOBAL_DS()->reselect_array != 0) {
+	// 		gptp_clear_reselect_tree();
+	// 		gptp_updt_roles_tree();
+	// 		gptp_set_selected_tree();
+	// 	}
 
-		break;
-	}
+	// 	break;
+	// }
+
+	GPTP_GLOBAL_DS()->selected_role[1] = GPTP_PORT_SLAVE;
+	GPTP_GLOBAL_DS()->gm_present = true;
+
+
+	struct gptp_global_ds *global_ds = GPTP_GLOBAL_DS();
 }
 
 static void tx_announce(int port)

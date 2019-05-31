@@ -329,11 +329,8 @@ enum net_verdict net_gptp_recv(struct net_if *iface, struct net_pkt *pkt)
 {
 	struct gptp_hdr *hdr = GPTP_HDR(pkt);
 
-	if ((hdr->ptp_version != GPTP_VERSION) ||
-			(hdr->transport_specific != GPTP_TRANSPORT_802_1_AS)) {
-		/* The stack only supports PTP V2 and transportSpecific set
-		 * to 1 with IEEE802.1AS-2011.
-		 */
+	if (hdr->ptp_version != GPTP_VERSION) {
+		/* The stack only supports PTP V2. */
 		return NET_DROP;
 	}
 
@@ -519,7 +516,7 @@ static void gptp_state_machine(void)
 		case GPTP_PORT_SLAVE:
 			gptp_md_state_machines(port);
 			gptp_mi_port_sync_state_machines(port);
-			gptp_mi_port_bmca_state_machines(port);
+			//gptp_mi_port_bmca_state_machines(port);
 			break;
 		default:
 			NET_DBG("%s: Unknown port state", __func__);

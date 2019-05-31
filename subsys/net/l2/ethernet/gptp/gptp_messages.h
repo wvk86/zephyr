@@ -38,6 +38,7 @@ extern "C" {
 	((struct gptp_pdelay_resp_follow_up *)gptp_data(pkt))
 
 /* Field values. */
+#define GPTP_TRANSPORT_1588 0x0
 #define GPTP_TRANSPORT_802_1_AS 0x1
 #define GPTP_VERSION 0x2
 
@@ -66,9 +67,9 @@ extern "C" {
  * which are 4 bytes.
  */
 #define GPTP_ANNOUNCE_LEN(pkt) \
-	(sizeof(struct gptp_hdr) + sizeof(struct gptp_announce) \
-	 + ntohs(GPTP_ANNOUNCE(pkt)->tlv.len) \
-	 - sizeof(struct gptp_path_trace_tlv) + 4)
+	(sizeof(struct gptp_hdr) + sizeof(struct gptp_announce)) //\
+	 // + ntohs(GPTP_ANNOUNCE(pkt)->tlv.len) \
+	 // - sizeof(struct gptp_path_trace_tlv) + 4)
 
 #define GPTP_CHECK_LEN(pkt, len) \
 	((GPTP_PACKET_LEN(pkt) != len) && (GPTP_VALID_LEN(pkt, len)))
@@ -180,7 +181,7 @@ struct gptp_announce {
 	u8_t time_source;
 
 	/* Path Trace TLV. This field has a variable length. */
-	struct gptp_path_trace_tlv tlv;
+	//struct gptp_path_trace_tlv tlv;
 } __packed;
 
 struct gptp_sync {
@@ -227,8 +228,8 @@ struct gptp_follow_up {
 	u32_t prec_orig_ts_nsecs;
 
 	/** Follow up TLV. */
-	struct gptp_follow_up_tlv_hdr tlv_hdr;
-	struct gptp_follow_up_tlv tlv;
+	// struct gptp_follow_up_tlv_hdr tlv_hdr;
+	// struct gptp_follow_up_tlv tlv;
 } __packed;
 
 struct gptp_pdelay_req {
