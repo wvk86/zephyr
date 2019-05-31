@@ -15,6 +15,8 @@ LOG_MODULE_REGISTER(net_gptp_sample, LOG_LEVEL_DBG);
 #include <net/net_if.h>
 #include <net/ethernet.h>
 #include <net/gptp.h>
+#include <shell/shell.h>
+#include <ptp_clock.h>
 
 static struct gptp_phase_dis_cb phase_dis;
 
@@ -154,6 +156,42 @@ static int init_app(void)
 
 	return 0;
 }
+
+static int cmd_get_ptp_clk(const struct shell *shell, size_t argc, char **argv)
+{
+	struct net_if *iface;
+	struct net_ptp_time time = {
+		.second = 0,
+		.nanosecond = 0,
+	};
+
+	struct device *clk;
+
+	if (argc != 2) {
+		shell_help(shell);
+		return -ENOEXEC;
+	}
+
+	iface = net_if_get_by_index(atoi(argv[1]));
+	if (!iface) {
+		shell_error(shell, "Interface not found");
+		return -ENODEV;
+	}
+
+	clk = net_eth_get_ptp_clock(iface);
+	if (!clk) {
+		shell_error(shell, "Interface no PTP support");
+		return -ENODEV;
+	}
+
+	ptp_clock_get(clk, &time);
+
+	printk("ptp time(second):        %llu\n", time.second);
+	shell_print(shell, "ptp time (nanosecond):  %09u", time.nanosecond);
+
+	return 0;
+}
+SHELL_CMD_REGISTER(get_ptp, NULL, "[interface index]", cmd_get_ptp_clk);
 
 void main(void)
 {
